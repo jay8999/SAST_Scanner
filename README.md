@@ -15,13 +15,17 @@ Pipeline-Ready Architecture: Built with clean CLI arguments via argparse, making
 
 Clone the repository and execute the scanner against your target codebase directly from the terminal.
 
+```
 git clone https://github.com/your-username/codesec-scanner.git
 cd codesec-scanner
 python scanner.py /path/to/target -o scan_results.json
+```
 
 # CLI Usage Options
 
+```
 python scanner.py --help
+```
 
 target: The local directory or file path you want to analyze.
 
@@ -29,6 +33,7 @@ target: The local directory or file path you want to analyze.
 
 # Sample JSON Output
 
+```
 {
   "scan_timestamp": "2026-03-06T14:30:00Z",
   "total_findings": 1,
@@ -41,12 +46,15 @@ target: The local directory or file path you want to analyze.
     }
   ]
 }
+```
 
 # Verifying with Test Data
 
 The repository includes a vulnerable_sample.py file containing intentional security flaws to verify that the scanner operates correctly:
 
+```
 python scanner.py vulnerable_sample.py -o test_results.json
+```
 
 # Project Motivation
 
