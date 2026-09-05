@@ -1,0 +1,16 @@
+name: CI Security Scan
+on: [push, pull_request]
+jobs:
+  security-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Run SAST Scanner
+        run: python scanner.py . -o results.json
+      - name: Verify Findings
+        run: |
+          cat results.json
