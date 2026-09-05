@@ -4,7 +4,7 @@ import os # so python can walk around folders like a person exploring a house.
 import re # for regular expressions that can help find api keys and other common keys quickly.
 from datetime import datetime # to let the output have the date and time it was created.
 
-// PATTERNS dictionary holds our api key and other important commonly used passwords/functions that shouldnt be hardcoded.
+# PATTERNS dictionary holds our api key and other important commonly used passwords/functions that shouldnt be hardcoded.
 PATTERNS = {
     "AWS Access Key": r"AKIA[0-9A-Z]{16}",
     "Generic API Key": (
