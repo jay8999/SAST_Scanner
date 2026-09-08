@@ -1,5 +1,5 @@
 # SAST_Scanner
-A lightweight, zero-dependency Static Application Security Testing (SAST) command-line tool written in Python designed to detect hardcoded API keys, sensitive credentials, and dangerous code patterns across source codebases.
+A lightweight, zero dependency Static Application Security Testing (SAST) command line tool written in Python designed to detect hardcoded API keys, sensitive credentials, and dangerous code patterns across source codebases.
 
 # Features:
 
@@ -58,4 +58,4 @@ python scanner.py vulnerable_sample.py -o test_results.json
 
 # Project Motivation
 
-Built as a practical utility for code reviews and security auditing. Whether performing white-box penetration testing or setting up automated defensive checks to prevent accidental credential leakage, this tool bridges the gap between development workflows and application security.
+Built as a practical utility for code reviews and security auditing. Whether performing white-box penetration testing or setting up automated defensive checks to prevent accidental credential leakage, this tool bridges the gap between development workflows and application security. Feel free to contact if you have any ideas for future implementation.
