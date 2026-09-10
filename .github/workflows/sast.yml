@@ -1,0 +1,99 @@
+# This is a GitHub Actions workflow file. GitHub reads everything in
+# .github/workflows/ and uses it to run automated jobs ("CI/CD") whenever
+# certain things happen in the repo - in our case, whenever someone pushes
+# code or opens a pull request. Think of it as a robot teammate that always
+# runs the security scanner for you, so nobody has to remember to do it
+# manually before merging code.
+
+name: SAST Scan  # The name shown for this workflow in the GitHub Actions tab.
+
+# "on:" defines WHEN this workflow should automatically run.
+on:
+  push:
+    branches: ["main"]        # Run whenever someone pushes directly to main...
+  pull_request:
+    branches: ["main"]        # ...or opens/updates a pull request targeting main.
+  workflow_dispatch:          # Also allow running it manually from the Actions tab.
+
+# "jobs:" defines the actual work to do. A workflow can have multiple jobs,
+# but we only need one here.
+jobs:
+  sast:                              # An internal ID for this job (can be anything).
+    name: Run SAST Scanner           # The friendly name shown in the GitHub UI.
+    runs-on: ubuntu-latest           # Run this job on a fresh Ubuntu Linux virtual machine.
+
+    # "steps:" is an ordered list of individual actions this job performs,
+    # top to bottom - like a recipe.
+    steps:
+      # Step 1: Get a copy of the repo's code onto the virtual machine.
+      # Without this step, there would be no code for the scanner to look at!
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Install Python on the virtual machine, since our scanner is
+      # a Python script and needs a Python interpreter to run it.
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      # Step 3: Actually run our scanner against the whole repository
+      # ("." means "the current directory"). This is the same command you'd
+      # type on your own machine, just running automatically in the cloud.
+      - name: Run SAST Scanner
+        run: python SAST_Scanner.py . -o scan_results.json --severity Low
+
+      # Step 4: Save the JSON report as a downloadable "artifact" attached
+      # to this workflow run, so a human can open the Actions tab later and
+      # download the full results - even if the next step below fails the
+      # build. "if: always()" makes sure this upload step still happens even
+      # when an earlier step in this job has failed.
+      - name: Upload scan report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sast-scan-results
+          path: scan_results.json
+
+      # Step 5: Read the JSON report back in and check it for any "High"
+      # severity findings. If we find even one, we print an error message
+      # (GitHub highlights lines starting with "::error::" in red in the
+      # UI) and exit with code 1, which tells GitHub Actions "this step
+      # failed" - and that failure is what blocks the pull request/build.
+      #
+      # `run: |` with a Python heredoc (<<'EOF' ... EOF) lets us embed a
+      # small Python script directly inside the YAML file instead of
+      # needing a separate .py file just for this check.
+      - name: Fail build on High severity findings
+        run: |
+          python - <<'EOF'
+          import json
+          import sys
+
+          # Load the report file that the previous "Run SAST Scanner" step wrote.
+          with open("scan_results.json", encoding="utf-8") as f:
+              report = json.load(f)
+
+          # Build a list containing only the High severity findings, using a
+          # list comprehension: "for every finding in the report, keep it
+          # only if its severity is High".
+          high_findings = [
+              finding for finding in report["vulnerabilities"]
+              if finding["severity"] == "High"
+          ]
+
+          if high_findings:
+              # "::error::" is special GitHub Actions syntax that makes this
+              # message show up as a red annotation in the workflow run.
+              print(f"::error::{len(high_findings)} High severity finding(s) detected.")
+              for finding in high_findings:
+                  print(
+                      f"  - {finding['file_path']}:{finding['line_number']} "
+                      f"[{finding['vulnerability_type']}]"
+                  )
+              # Exiting with a non-zero code tells GitHub Actions this step
+              # (and therefore the whole job) failed.
+              sys.exit(1)
+
+          print("No High severity findings.")
+          EOF
