@@ -19,7 +19,7 @@ A lightweight, zero dependency Static Application Security Testing (SAST) comman
 The scanner is built around two detection engines that share one output format:
 
 - **AST engine (`scan_file_ast`)** — used for any `.py` file. It parses the file into a syntax tree and only flags things that are actually happening in code: a real call to `eval()`/`exec()`/`pickle.load()`, or a real assignment of a hardcoded string to a variable whose name looks like a secret (`api_key`, `token`, `password`, etc.). If the file fails to parse (e.g. it's not valid Python), the scanner falls back to the regex engine for that file instead of silently reporting nothing.
-- **Regex engine (`scan_file_regex`)** — the original line-by-line matcher. It's the only option for non-Python files (JS, YAML, `.env`, config files, and so on), where there's no ready-made parser to lean on.
+- **Regex engine (`scan_file_regex`)** — the original line by line matcher. It's the only option for non Python files (JS, YAML, `.env`, config files, and so on), where there's no ready made parser to lean on.
 
 `scan_file()` decides which engine handles a given file, and `scan_codebase()` walks the target (or scans it directly, if it's a single file) and merges everything into one findings list. `main()` then filters that list by `--severity` before writing the JSON report.
 
@@ -34,11 +34,11 @@ scan_codebase()
 
 # Why AST instead of just regex?
 
-Regex is fast and works on any language, but it can't tell code from a comment, a docstring, or a string literal. A line like `# used to call eval() here, removed it` or `message = "don't eval(x)"` would trip the old regex-only scanner even though there's no actual vulnerability. That's a false positive, and a scanner that cries wolf gets ignored or disabled.
+Regex is fast and works on any language, but it can't tell code from a comment, a docstring, or a string literal. A line like `# used to call eval() here, removed it` or `message = "don't eval(x)"` would trip the old regex only scanner even though there's no actual vulnerability. That's a false positive, and a scanner that cries wolf gets ignored or disabled.
 
-The `ast` module parses Python source into its actual syntax tree, so the scanner can ask more precise questions: *is this string literally being passed to a call to `eval`?* rather than *does the word "eval" appear on this line?* The same logic applies to hardcoded secrets — the AST engine only flags a string when it's genuinely assigned to a suspiciously-named variable, not whenever a matching pattern shows up anywhere in the file.
+The `ast` module parses Python source into its actual syntax tree, so the scanner can ask more precise questions: *is this string literally being passed to a call to `eval`?* rather than *does the word "eval" appear on this line?* The same logic applies to hardcoded secrets, the AST engine only flags a string when it's genuinely assigned to a suspiciously named variable, not whenever a matching pattern shows up anywhere in the file.
 
-Regex isn't going away, though: it's still the only practical way to check non-Python files, and it's a safe fallback if a `.py` file can't be parsed (e.g. Python 2 syntax, or a syntax error). The two engines are complementary rather than either/or, which is why both still exist side by side.
+Regex isn't going away, though: it's still the only practical way to check non Python files, and it's a safe fallback if a `.py` file can't be parsed (e.g. Python 2 syntax, or a syntax error). The two engines are complementary rather than either/or, which is why both still exist side by side.
 
 # Quick Start
 
@@ -59,7 +59,7 @@ python SAST_Scanner.py --help
 - `target`: The local directory or file path you want to analyze.
 - `-o, --output`: Optional flag to specify a custom filename for the generated JSON report (defaults to `scan_results.json`).
 - `--severity`: Minimum severity to include in the report — `Low`, `Medium`, or `High` (defaults to `Low`, which shows everything). Use `--severity High` to see only the findings worth blocking a build over.
-- `--exclude`: Comma-separated wildcard patterns of files to skip entirely, e.g. `--exclude "vulnerable_sample.py,*.md"`. Useful for known test fixtures or documentation that quotes dangerous-looking code as an *example* rather than actually containing it — see the CI note below.
+- `--exclude`: Comma-separated wildcard patterns of files to skip entirely, e.g. `--exclude "vulnerable_sample.py,*.md"`. Useful for known test fixtures or documentation that quotes dangerous-looking code as an *example* rather than actually containing it, see the CI note below.
 
 # Sample JSON Output
 
