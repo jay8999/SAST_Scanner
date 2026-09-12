@@ -59,6 +59,7 @@ python SAST_Scanner.py --help
 - `target`: The local directory or file path you want to analyze.
 - `-o, --output`: Optional flag to specify a custom filename for the generated JSON report (defaults to `scan_results.json`).
 - `--severity`: Minimum severity to include in the report — `Low`, `Medium`, or `High` (defaults to `Low`, which shows everything). Use `--severity High` to see only the findings worth blocking a build over.
+- `--exclude`: Comma-separated wildcard patterns of files to skip entirely, e.g. `--exclude "vulnerable_sample.py,*.md"`. Useful for known test fixtures or documentation that quotes dangerous-looking code as an *example* rather than actually containing it — see the CI note below.
 
 # Sample JSON Output
 
@@ -98,6 +99,8 @@ python SAST_Scanner.py vulnerable_sample.py -o test_results.json
 4. Fails the build if any **High** severity finding is present, so real risks (hardcoded AWS keys, `eval()`, `pickle.load()`) block a merge instead of quietly sitting in a report nobody reads.
 
 To adjust what fails the build, edit the severity check step in the workflow file — for example, change it to fail on Medium and above too.
+
+**Note on `--exclude` in CI:** the workflow scans `--exclude "vulnerable_sample.py,*.md"`. Without that, the build would fail on *every* run, for two unhelpful reasons: `vulnerable_sample.py` is meant to always trigger findings (that's how you verify the scanner works locally — see "Verifying with Test Data" above), and this README itself quotes dangerous-looking code as documentation examples of what the scanner catches, which the regex engine can't distinguish from the real thing. If you add other files that quote or reference risky patterns for documentation purposes, add them to the `--exclude` list too.
 
 # Project Motivation
 

@@ -1,5 +1,6 @@
 import argparse  # to let us type commands in our terminal.
 import ast  # to actually understand Python code as code, not just text.
+import fnmatch  # to match file paths against simple wildcard patterns like "*.md".
 import json  # to write our findings into a neat tidy report card.
 import os  # so python can walk around folders like a person exploring a house.
 import re  # for regular expressions that can help find api keys and other common keys quickly.
@@ -342,17 +343,48 @@ def scan_file(file_path):
   return scan_file_regex(file_path)
 
 
-def scan_codebase(target):
+def _is_excluded(file_path, exclude_patterns):
+  """Checks a file path against a list of wildcard patterns (e.g. "*.md",
+  "vulnerable_sample.py"). Returns True if it matches any of them.
+
+  We check the pattern against both the full path (so patterns like
+  "docs/*.md" work) and just the filename on its own (so a simple pattern
+  like "*.md" or "vulnerable_sample.py" matches no matter which folder the
+  file happens to be in). fnmatch.fnmatch understands simple wildcards:
+  "*" means "any number of any characters", "?" means "any one character".
+  """
+  if not exclude_patterns:
+    return False
+  filename = os.path.basename(file_path)
+  return any(
+      fnmatch.fnmatch(file_path, pattern) or fnmatch.fnmatch(filename, pattern)
+      for pattern in exclude_patterns
+  )
+
+
+def scan_codebase(target, exclude_patterns=None):
   """Walks a directory (or scans a single file directly) and collects findings
-  from every file, skipping the noisy directories in IGNORE_DIRS.
+  from every file, skipping the noisy directories in IGNORE_DIRS and any file
+  that matches one of exclude_patterns.
 
   "target" can be either:
     - a path to a single file, e.g. "vulnerable_sample.py", or
     - a path to a folder, e.g. "." (the current directory) or "/my/project"
+
+  "exclude_patterns" is a list of wildcard patterns (see _is_excluded above)
+  for files you want the scanner to skip entirely - handy for known test
+  fixtures (like our own vulnerable_sample.py) or documentation that quotes
+  dangerous-looking code as an example rather than actually containing it.
   """
+  exclude_patterns = exclude_patterns or []
+
   if os.path.isfile(target):
     # The user pointed us at one specific file rather than a whole folder,
-    # so there's nothing to "walk" - just scan that one file directly.
+    # so there's nothing to "walk" - just scan that one file directly
+    # (unless it's been explicitly excluded, in which case there's nothing
+    # to do at all).
+    if _is_excluded(target, exclude_patterns):
+      return []
     return scan_file(target)
 
   all_findings = []
@@ -372,6 +404,8 @@ def scan_codebase(target):
       # system (using "/" on Mac/Linux, "\" on Windows) instead of us
       # having to glue strings together by hand.
       file_path = os.path.join(root, file)
+      if _is_excluded(file_path, exclude_patterns):
+        continue
       all_findings.extend(scan_file(file_path))
   return all_findings
 
@@ -407,14 +441,32 @@ def main():
       ),
   )
 
+  # A comma-separated list of filename patterns to skip entirely, e.g.
+  # "vulnerable_sample.py,*.md". Useful for excluding known test fixtures
+  # or documentation that shows dangerous-looking code as an example rather
+  # than actually containing it.
+  parser.add_argument(
+      "--exclude",
+      default="",
+      help=(
+          "Comma-separated wildcard patterns of files to skip entirely, "
+          "e.g. --exclude \"vulnerable_sample.py,*.md\""
+      ),
+  )
+
   # This actually reads sys.argv (what the user typed) and turns it into a
   # simple object where args.target, args.output, and args.severity hold
   # whatever values were provided (or their defaults).
   args = parser.parse_args()
 
+  # Turn "vulnerable_sample.py,*.md" into ["vulnerable_sample.py", "*.md"],
+  # stripping any stray whitespace and ignoring empty entries (which happens
+  # if --exclude wasn't passed at all, since "".split(",") is [""]).
+  exclude_patterns = [p.strip() for p in args.exclude.split(",") if p.strip()]
+
   # Do the actual scanning work - this is everything we've built above,
   # kicked off with one function call.
-  findings = scan_codebase(args.target)
+  findings = scan_codebase(args.target, exclude_patterns=exclude_patterns)
 
   # Turn the chosen severity word ("Low"/"Medium"/"High") into its matching
   # number using SEVERITY_LEVELS, then keep only the findings whose severity
@@ -432,6 +484,7 @@ def main():
   report = {
       "scan_timestamp": datetime.utcnow().isoformat() + "Z",
       "severity_filter": args.severity,
+      "excluded_patterns": exclude_patterns,
       "total_findings": len(filtered_findings),
       "vulnerabilities": filtered_findings,
   }

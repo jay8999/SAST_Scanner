@@ -40,8 +40,19 @@ jobs:
       # Step 3: Actually run our scanner against the whole repository
       # ("." means "the current directory"). This is the same command you'd
       # type on your own machine, just running automatically in the cloud.
+      #
+      # --exclude skips two files that would otherwise fail every single
+      # run for reasons that have nothing to do with real vulnerabilities:
+      #   - vulnerable_sample.py is an intentionally-vulnerable test
+      #     fixture, not real application code.
+      #   - README.md quotes a couple of dangerous function calls and an
+      #     example AWS key as documentation examples of what the scanner
+      #     catches, not actual dangerous code.
+      # Remove or adjust this list if your project's needs change.
       - name: Run SAST Scanner
-        run: python SAST_Scanner.py . -o scan_results.json --severity Low
+        run: >
+          python SAST_Scanner.py . -o scan_results.json --severity Low
+          --exclude "vulnerable_sample.py,*.md"
 
       # Step 4: Save the JSON report as a downloadable "artifact" attached
       # to this workflow run, so a human can open the Actions tab later and
